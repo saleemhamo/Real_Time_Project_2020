@@ -12,6 +12,7 @@ Does the server has a copy of memory
 Does the server send a lock request to all other  machines
 
 Assuptions:
+    the client sends the memory # want to make
 
 */
 
@@ -39,6 +40,9 @@ struct MemTable
 
 void serverHandler(void* data) {
     int new_socket = *((int*)data) ;
+    char readBuffer[20];
+    read( new_socket , readBuffer, 1024);
+    
     
 }
 
