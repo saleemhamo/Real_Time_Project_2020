@@ -9,7 +9,7 @@ Notes:
 
 TRADE-OFF questions:
 Does the server has a copy of memory
-Does the server send a lock request to all other machines
+Does the server send a lock request to all other  machines
 
 Assuptions:
 
