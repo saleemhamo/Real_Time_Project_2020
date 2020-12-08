@@ -33,8 +33,30 @@ this function will make a socket with intended client/server
 @params - host name to be contacted  
 Returns - socker file discriptor 
 */
+    int sock, len;
+    static struct sockaddr_in host_adr;
 
-    
+    struct hostent *host;
+    host = gethostbyname(hostAdress);    //returns the ip and the address to connect to
+    if ( host == (struct hostent *) NULL ) {
+        perror("gethostbyname ");
+        exit(2);
+    }
+    //configuration adress
+    memset(&host_adr, 0, sizeof(host_adr));
+    host_adr.sin_family      = AF_INET;
+    memcpy(&host_adr.sin_addr, host->h_addr, host->h_length);
+    host_adr.sin_port        = htons(PORT);
+
+    if ( (sock = socket(AF_INET, SOCK_STREAM, 0)) < 0 ) {
+        perror("socker creation error");
+        exit(3);
+    }
+    if ( connect(sock, (struct sockaddr *) &host_adr, sizeof(host_adr)) < 0 ) {
+        perror("connect error");
+        exit(4);
+    }
+    return sock;
 }
 
 
