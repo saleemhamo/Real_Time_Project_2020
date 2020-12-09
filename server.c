@@ -27,7 +27,9 @@ Assuptions:
 #include <stdlib.h>
 #include <pthread.h> 
 
-#define PORT 9999
+// #define PORT 9999
+#define SERVERPORT 9999
+#define HOSTIP "localhost"
 
 struct Member 
 {   
@@ -50,14 +52,14 @@ void serverHandler(void* data) {
     printf("I read buffer [%s]\n",buffer);
     //split buffer for ip, memid, type
     char* token;
-    int ip,memId,type;
+    int port,memId,type;
     token = strtok (buffer, ":");
-    sscanf (token, "%d", &ip);
+    sscanf (token, "%d", &port);
     token = strtok (NULL, ":");
     sscanf (token, "%d", &memId);
     token = strtok (NULL, ":");
     sscanf (token, "%d", &type);
-    printf("I reeived a message type %d of memId %d from %d\n",type,memId,ip);
+    printf("I reeived a message type %d of memId %d from %d\n",type,memId,port);
     send(new_socket, "1", sizeof("1"), 0);
 
 
@@ -81,7 +83,7 @@ main(void){
     memset(&serv_adr, 0, sizeof(serv_adr));
     serv_adr.sin_family      = AF_INET;
     serv_adr.sin_addr.s_addr = htonl(INADDR_ANY); //basically my ip address
-    serv_adr.sin_port        = htons(PORT);     //initiating port number
+    serv_adr.sin_port        = htons(SERVERPORT);     //initiating port number
 
     if ( bind(orig_sock, (struct sockaddr *) &serv_adr,sizeof(serv_adr)) < 0 ) {
         perror("bind Socket error");

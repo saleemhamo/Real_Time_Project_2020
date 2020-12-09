@@ -12,8 +12,10 @@
 
 
 
-#define PORT 9999
-#define SERVERIP "localhost"
+// #define PORT 9999
+// #define SERVERIP "localhost"
+#define SERVERPORT 9999
+#define HOSTIP "localhost"
 
 struct Member 
 {   
@@ -28,11 +30,13 @@ struct Memory
     struct Node* sharedBy;
     struct Memory* next;
 };
-
-int ip;
+//////
+/////
+//////
+int port;
 int memId;
 
-int makeSocket(char hostAdress[]){
+int makeSocket(int PORT){
 /* 
 this function will make a socket with intended client/server
 @params - host name to be contacted  
@@ -44,10 +48,10 @@ Returns - socker file discriptor
     char buffer[1024];
 
     
-    sprintf(hello,"%d",ip);
+    sprintf(hello,"%d",port);
 
     struct hostent *host;
-    host = gethostbyname(hostAdress);    //returns the ip and the address to connect to
+    host = gethostbyname(HOSTIP);    //returns the ip and the address to connect to
     if ( host == (struct hostent *) NULL ) {
         perror("gethostbyname ");
         exit(2);
@@ -81,9 +85,9 @@ void createMemory(){
     int type = 1;
     char readBuffer[1024];
     char sendBuffer[100];
-    sprintf(sendBuffer,"%d:%d:%d",ip,memId,type);
+    sprintf(sendBuffer,"%d:%d:%d",port,memId,type);
 
-    int sock = makeSocket(SERVERIP);
+    int sock = makeSocket(SERVERPORT);
     send(sock, sendBuffer, sizeof(sendBuffer),0);//send client id
     read(sock , readBuffer, 1024);
     if(atoi(readBuffer) == -1){
@@ -95,17 +99,35 @@ void createMemory(){
         printf("connected\n");
     }
     // printf("after make socket in create memory\n");
+}
 
+void talkTo(int portToTalk){
+//testing purpose
+    int type = 2;
+    char readBuffer[1024];
+    char sendBuffer[100];
+    sprintf(sendBuffer,"%d:%d:%d",port,memId,type);
 
-
+    int sock = makeSocket(portToTalk);
+    send(sock, sendBuffer, sizeof(sendBuffer),0);//send client id
+    read(sock , readBuffer, 1024);
+    if(atoi(readBuffer) == -1){
+        perror("error in connection");
+        exit(1);
+    }
+    else
+    {
+        printf("connected\n");
+    }
+    // printf("after make socket in create memory\n");
 }
 
 
 
 int main(){
     int ans;
-    printf("Please enter your IP\n");
-    scanf("%d",&ip);
+    printf("Please enter your PORT number\n");
+    scanf("%d",&port);
     
 
     while(1){
@@ -114,7 +136,7 @@ int main(){
         scanf("%d",&memId);
         printf("Enter type of your request\n");
         printf("1- create a shared memory\n");
-        printf("2- \n");
+        printf("2- talk to client \n");
         scanf("%d",&ans);
 
         switch (ans)
@@ -122,6 +144,15 @@ int main(){
         case 1:
             printf("insdie case 1\n");
             createMemory();
+            printf("after create memory in case 1\n");
+            break;
+        
+        case 2:
+            printf("insdie case 1\n");
+            int portToTalk;
+            printf("enter the prot you want to talk\n");
+            scanf("%d",&portToTalk);
+            talkTo(portToTalk);
             printf("after create memory in case 1\n");
             break;
         
