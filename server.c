@@ -13,6 +13,7 @@ Does the server send a lock request to all other  machines
 
 Assuptions:
     the client sends the memory # want to make
+    any message will be sent as "ip:memId:request type"
 
 */
 
@@ -21,6 +22,10 @@ Assuptions:
 #include <stdio.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netdb.h>
+#include <string.h>
+#include <stdlib.h>
+#include <pthread.h> 
 
 #define PORT 9999
 
@@ -40,9 +45,24 @@ struct MemTable
 
 void serverHandler(void* data) {
     int new_socket = *((int*)data) ;
-    char readBuffer[20];
-    read( new_socket , readBuffer, 1024);
+    char buffer[1024];
+    read( new_socket , buffer, 1024);
+    printf("I read buffer [%s]\n",buffer);
+    //split buffer for ip, memid, type
+    char* token;
+    int ip,memId,type;
+    token = strtok (buffer, ":");
+    sscanf (token, "%d", &ip);
+    token = strtok (NULL, ":");
+    sscanf (token, "%d", &memId);
+    token = strtok (NULL, ":");
+    sscanf (token, "%d", &type);
+    printf("I reeived a message type %d of memId %d from %d\n",type,memId,ip);
+    send(new_socket, "1", sizeof("1"), 0);
+
+
     
+
     
 }
 
@@ -76,14 +96,19 @@ main(void){
     }
 
     while(1){
+        printf("start while loop\n");
         clnt_len = sizeof(clnt_adr);
         if ( (new_sock = accept(orig_sock, (struct sockaddr *) &clnt_adr,&clnt_len)) < 0 ) {
             perror("accept error");
             close(orig_sock);
             exit(4);
         }
+        // printf("after accept\n");
         pthread_t  thread;
+        // printf("before thread\n");
         pthread_create(&thread,  NULL,  (void *) serverHandler,  (void*) &new_sock); 
+        pthread_join(thread, NULL);
+        printf("after thread\n");
     }
     
     return 0;
