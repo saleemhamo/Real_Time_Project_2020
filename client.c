@@ -14,7 +14,7 @@
 
 // #define PORT 9999
 // #define SERVERIP "localhost"
-#define SERVERPORT 9999
+#define SERVERPORT 9998
 #define HOSTIP "localhost"
 
 struct Member 
@@ -27,7 +27,7 @@ struct Memory
     int memNumber;
     char content [2048];
     int lockedBy;
-    struct Node* sharedBy;
+    struct Member* sharedBy;
     struct Memory* next;
 };
 //////

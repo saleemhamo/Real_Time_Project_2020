@@ -13,7 +13,7 @@ Does the server send a lock request to all other  machines
 
 Assuptions:
     the client sends the memory # want to make
-    any message will be sent as "ip:memId:request type"
+    any message will be sent as "port:memId:request type"
 
 */
 
@@ -28,22 +28,59 @@ Assuptions:
 #include <pthread.h> 
 
 // #define PORT 9999
-#define SERVERPORT 9999
+#define SERVERPORT 9998
 #define HOSTIP "localhost"
+
 
 struct Member 
 {   
     int data;
-    struct Member* next;
+    struct Member *next;
 };
-struct MemTable
+struct MemoryTable
 {
-    int memNumber;
-    int lockedBy;
-    struct Node* sharedBy;
-    struct MemTable* next;
+    int memoryID;
+    struct Member* sharedBy;
+    struct MemoryTable *next;
 };
 
+struct MemoryTable* tableHead = NULL; 
+
+void pushTo(struct MemoryTable** head_ref, int memID, int port){
+    // struct MemoryTable *exist = *head_ref;
+    // int memExists = 0;
+    // while(head_ref!= NULL){
+    //     if (*head_ref->memoryID == memID){
+
+    //     }
+    // }
+
+    struct Member* new_member = (struct Member*) malloc(sizeof(struct Member));
+    new_member->data = port;
+    new_member->next = NULL;
+
+    struct MemoryTable* newTable = (struct MemoryTable*) malloc(sizeof(struct MemoryTable));
+    newTable->memoryID = memID;
+    newTable->sharedBy = new_member;
+    newTable->next = (*head_ref);
+    (*head_ref) = newTable;
+
+}
+
+void printTable(struct MemoryTable *table){
+    printf("start print");
+    while(table != NULL){
+        printf(" %d => ",table->memoryID);
+        struct Member* mem = table->sharedBy;
+        while( mem != NULL){
+            printf(" %d ,",mem->data);
+            mem = mem->next;
+        }
+        printf("\nnew one \n");
+        table = table->next;
+
+    }
+}
 
 void serverHandler(void* data) {
     int new_socket = *((int*)data) ;
@@ -60,12 +97,17 @@ void serverHandler(void* data) {
     token = strtok (NULL, ":");
     sscanf (token, "%d", &type);
     printf("I reeived a message type %d of memId %d from %d\n",type,memId,port);
-    send(new_socket, "1", sizeof("1"), 0);
+    if(type == 1){
+        printf("type one request\n");
+        pushTo(&tableHead,memId,port);
+        printTable(tableHead);
+    }
+    else{
+        printf("not defined type");
+    }
+    // send(new_socket, "1", sizeof("1"), 0);
+    //tableHead = (struct MemoryTable*)malloc(sizeof(struct MemoryTable));
 
-
-    
-
-    
 }
 
 
