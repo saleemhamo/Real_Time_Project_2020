@@ -28,7 +28,7 @@ Assuptions:
 #include <pthread.h> 
 
 // #define PORT 9999
-#define SERVERPORT 9998
+#define SERVERPORT 9999
 #define HOSTIP "localhost"
 
 
@@ -44,31 +44,64 @@ struct MemoryTable
     struct MemoryTable *next;
 };
 
-struct MemoryTable* tableHead = NULL; 
+struct MemoryTable* tableHead = NULL;
 
-void pushTo(struct MemoryTable** head_ref, int memID, int port){
-    // struct MemoryTable *exist = *head_ref;
-    // int memExists = 0;
-    // while(head_ref!= NULL){
-    //     if (*head_ref->memoryID == memID){
+char* addNewMember(struct Member** head_ref, int new_data){
+    char  * members = "1:2:3:4:5";
+    struct Member* new_node = (struct Member*) malloc(sizeof(struct Member));
+    new_node->data = new_data;
+    new_node->next = (*head_ref);
+    (*head_ref) = new_node;
+    return members;
+} 
 
-    //     }
-    // }
+char* pushTo(struct MemoryTable** head_ref, int memID, int port){
+    /* 
+    if the memory is new then create a new table and push the new member, reurn "1" on sucess
+    else memory exists before, then call addNewMember function to push the member to this memory
+    */
 
-    struct Member* new_member = (struct Member*) malloc(sizeof(struct Member));
-    new_member->data = port;
-    new_member->next = NULL;
+    int memExists = 0;
+    struct MemoryTable *exist = *head_ref;
 
-    struct MemoryTable* newTable = (struct MemoryTable*) malloc(sizeof(struct MemoryTable));
-    newTable->memoryID = memID;
-    newTable->sharedBy = new_member;
-    newTable->next = (*head_ref);
-    (*head_ref) = newTable;
+    if(*head_ref != NULL){ //(*head_ref != NULL)
+        while(exist != NULL){
+            if (exist->memoryID == memID){
+                memExists = 1;
+                break;
+            }
+            exist = exist->next;
+        }
+    }
+
+    if(memExists == 1){
+        printf("the memory exists before\n");
+        return addNewMember(&exist->sharedBy,port);
+    }
+    else
+    {
+        struct Member* new_member = (struct Member*) malloc(sizeof(struct Member));
+        new_member->data = port;
+        new_member->next = NULL;
+
+        struct MemoryTable* newTable = (struct MemoryTable*) malloc(sizeof(struct MemoryTable));
+        newTable->memoryID = memID;
+        newTable->sharedBy = new_member;
+        newTable->next = (*head_ref);
+        (*head_ref) = newTable;
+        return "1";
+    }
+    
+
+    
 
 }
 
 void printTable(struct MemoryTable *table){
-    printf("start print");
+    /* 
+    print all tables and its content
+    */
+    printf("start print \n........... \n");
     while(table != NULL){
         printf(" %d => ",table->memoryID);
         struct Member* mem = table->sharedBy;
@@ -76,7 +109,7 @@ void printTable(struct MemoryTable *table){
             printf(" %d ,",mem->data);
             mem = mem->next;
         }
-        printf("\nnew one \n");
+        printf("\n \n");
         table = table->next;
 
     }
@@ -85,6 +118,7 @@ void printTable(struct MemoryTable *table){
 void serverHandler(void* data) {
     int new_socket = *((int*)data) ;
     char buffer[1024];
+    char *response;
     read( new_socket , buffer, 1024);
     printf("I read buffer [%s]\n",buffer);
     //split buffer for ip, memid, type
@@ -99,7 +133,8 @@ void serverHandler(void* data) {
     printf("I reeived a message type %d of memId %d from %d\n",type,memId,port);
     if(type == 1){
         printf("type one request\n");
-        pushTo(&tableHead,memId,port);
+        response = pushTo(&tableHead,memId,port);
+        send(new_socket, response, sizeof(response), 0);
         printTable(tableHead);
     }
     else{

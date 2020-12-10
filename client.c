@@ -14,7 +14,7 @@
 
 // #define PORT 9999
 // #define SERVERIP "localhost"
-#define SERVERPORT 9998
+#define SERVERPORT 9999
 #define HOSTIP "localhost"
 
 struct Member 
@@ -90,15 +90,16 @@ void createMemory(){
     int sock = makeSocket(SERVERPORT);
     send(sock, sendBuffer, sizeof(sendBuffer),0);//send client id
     read(sock , readBuffer, 1024);
-    if(atoi(readBuffer) == -1){
-        perror("error in connection");
-        exit(1);
-    }
-    else
-    {
-        printf("connected\n");
-    }
-    // printf("after make socket in create memory\n");
+    printf("I received [%s]\n",readBuffer);
+    // if(atoi(readBuffer) == -1){
+    //     perror("error in connection");
+    //     exit(1);
+    // }
+    // else
+    // {
+    //     printf("connected\n");
+    // }
+    
 }
 
 void talkTo(int portToTalk){
