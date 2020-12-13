@@ -17,38 +17,9 @@ Assuptions:
 
 */
 
-#include <netdb.h>
-#include <netinet/in.h>
-#include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <unistd.h>
+#include "utils.c"
 
-// #define PORT 9999
-#define SERVERPORT 9999
-#define HOSTIP "localhost"
-
-enum OPERATION {CREATE, READ, WRITE, COPY, LOCK, UNLOCK} OPERATION; 
-
-
-struct Client
-{   
-    int portNumber;
-
-};
-struct Member
-{
-    int data;
-    struct Member *next;
-};
-struct MemoryTable
-{
-    int memoryID;
-    struct Member *sharedBy;
-    struct MemoryTable *next;
-};
+///////////////////////////////////////// MemoryTable ////////////////////////////////////////
 
 struct MemoryTable *tableHead = NULL;
 
@@ -62,7 +33,27 @@ char *addNewMember(struct Member **head_ref, int new_data)
     return members;
 }
 
-char *pushTo(struct MemoryTable **head_ref, int memID, int port)
+void printTable(struct MemoryTable *table)
+{
+    /* 
+    print all tables and its content
+    */
+    printf("start print \n........... \n");
+    while (table != NULL)
+    {
+        printf(" %d => ", table->memoryID);
+        struct Member *mem = table->sharedBy;
+        while (mem != NULL)
+        {
+            printf(" %d ,", mem->data);
+            mem = mem->next;
+        }
+        printf("\n \n");
+        table = table->next;
+    }
+}
+
+char *pushToTable(struct MemoryTable **head_ref, int memID, int port)
 {
     /* 
     if the memory is new then create a new table and push the new member, reurn "1" on sucess
@@ -105,71 +96,15 @@ char *pushTo(struct MemoryTable **head_ref, int memID, int port)
     }
 }
 
-void printTable(struct MemoryTable *table)
-{
-    /* 
-    print all tables and its content
-    */
-    printf("start print \n........... \n");
-    while (table != NULL)
-    {
-        printf(" %d => ", table->memoryID);
-        struct Member *mem = table->sharedBy;
-        while (mem != NULL)
-        {
-            printf(" %d ,", mem->data);
-            mem = mem->next;
-        }
-        printf("\n \n");
-        table = table->next;
-    }
-}
-
-void serverHandler(void *data)
-{
-    int new_socket = *((int *)data);
-    char buffer[1024];
-    char *response;
-    read(new_socket, buffer, 1024);
-    printf("I read buffer [%s]\n", buffer);
-    //split buffer for ip, memid, type
-    char *token;
-    int port, memId;
-    enum OPERATION type;
-    token = strtok(buffer, ":");
-    sscanf(token, "%d", &port);
-    token = strtok(NULL, ":");
-    sscanf(token, "%d", &memId);
-    token = strtok(NULL, ":");
-    sscanf(token, "%d", &type);
-    printf("I reeived a message type %d of memId %d from %d\n", type, memId, port);
-    
-
-    struct Client *client = (struct Client*)malloc(sizeof(struct Client));
-    client->portNumber = port;
-    
-
-    if (type == OPERATION.CREATE)
-    {
-        createOrAddToSharedMemoryOperation(*client, memId);
-    }
-    else
-    {
-        printf("not defined type");
-    }
-    // send(new_socket, "1", sizeof("1"), 0);
-    //tableHead = (struct MemoryTable*)malloc(sizeof(struct MemoryTable));
-}
-
 ///////////////////////////////////////// Main Operations ////////////////////////////////////////
 
-void createOrAddToSharedMemoryOperation(struct Client client, int memId)
+void createOrAddToSharedMemoryOperation(struct Client client, int memId, int socket)
 {
-     char *response;
+    char *response;
     printf("type one request\n");
-        response = pushTo(&tableHead, memId, client.portNumber);
-        send(new_socket, response, sizeof(response), 0);
-        printTable(tableHead);
+    response = pushToTable(&tableHead, memId, client.portNumber);
+    send(socket, response, sizeof(response), 0);
+    printTable(tableHead);
 }
 
 void readOperation()
@@ -188,10 +123,66 @@ void lockOrUnlockOperation()
 {
 }
 
+struct Request getRequestDetails(char *buffer)
+{
+
+    char *token;
+    struct Request *request = (struct Request *)malloc(sizeof(struct Request));
+    token = strtok(buffer, ":");
+    sscanf(token, "%d", &request->portNumber);
+    token = strtok(NULL, ":");
+    sscanf(token, "%d", &request->memId);
+    token = strtok(NULL, ":");
+    sscanf(token, "%d", &request->type);
+
+    return *request;
+}
+
+///////////////////////////////////////// Server Handler  ////////////////////////////////////////
+void serverHandler(void *socket)
+{
+    int new_socket = *((int *)socket);
+    char buffer[1024];
+    read(new_socket, buffer, 1024);
+    // printf("I read buffer [%s]\n", buffer);
+    struct Request request = getRequestDetails(buffer);
+    // printf("I reeived a message type %d of memId %d from %d\n", request.type, request.memId, request.portNumber);
+    struct Client *client = (struct Client *)malloc(sizeof(struct Client));
+    client->portNumber = request.portNumber;
+
+    if (request.type == CREATE)
+    {
+        createOrAddToSharedMemoryOperation(*client, request.memId, new_socket);
+    }
+    else if (request.type == READ)
+    {
+        readOperation();
+    }
+    else if (request.type == WRITE)
+    {
+        writeOperation();
+    }
+    else if (request.type == COPY)
+    {
+        copyOperation();
+    }
+    else if (request.type == LOCK)
+    {
+    }
+    else if (request.type == UNLOCK)
+    {
+    }
+    else
+    {
+        printf("not defined type");
+    }
+    // send(new_socket, "1", sizeof("1"), 0);
+    //tableHead = (struct MemoryTable*)malloc(sizeof(struct MemoryTable));
+}
+
 ///////////////////////////////////////// Main function ////////////////////////////////////////
 int main(void)
 {
-
     int orig_sock, new_sock;
     socklen_t clnt_len;
     struct sockaddr_in clnt_adr, serv_adr;
@@ -232,9 +223,7 @@ int main(void)
             close(orig_sock);
             exit(4);
         }
-        // printf("after accept\n");
         pthread_t thread;
-        // printf("before thread\n");
         pthread_create(&thread, NULL, (void *)serverHandler, (void *)&new_sock);
         pthread_join(thread, NULL);
         printf("after thread\n");

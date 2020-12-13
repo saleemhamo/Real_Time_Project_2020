@@ -1,6 +1,8 @@
 #include<stdio.h>
 #include <string.h>
 
+
+int y = 5;
 int main() {
    char string[50] = "2222:6:3";
    char* token;
