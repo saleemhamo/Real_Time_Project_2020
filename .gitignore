@@ -1,2 +1,4 @@
 /.dist
 /main
+/client
+/server

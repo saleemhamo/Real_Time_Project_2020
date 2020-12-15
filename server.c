@@ -104,6 +104,7 @@ void createOrAddToSharedMemoryOperation(struct Client client, int memId, int soc
     printf("type one request\n");
     response = pushToTable(&tableHead, memId, client.portNumber);
     send(socket, response, sizeof(response), 0);
+    //send mem to client
     printTable(tableHead);
 }
 
@@ -119,13 +120,19 @@ void copyOperation()
 {
 }
 
-void lockOrUnlockOperation()
+void lockOperation()
 {
 }
 
+void unlockOperation()
+{
+}
+
+///////////////////////////////////////// Server Handler  ////////////////////////////////////////
+
 struct Request getRequestDetails(char *buffer)
 {
-
+    
     char *token;
     struct Request *request = (struct Request *)malloc(sizeof(struct Request));
     token = strtok(buffer, ":");
@@ -138,7 +145,6 @@ struct Request getRequestDetails(char *buffer)
     return *request;
 }
 
-///////////////////////////////////////// Server Handler  ////////////////////////////////////////
 void serverHandler(void *socket)
 {
     int new_socket = *((int *)socket);
