@@ -1,2 +1,8 @@
 /.dist
 /main
+/client
+/server
+/tmp
+/tmp.c
+/.vscode
+/main.c
