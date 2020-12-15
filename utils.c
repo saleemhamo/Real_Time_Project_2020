@@ -32,6 +32,11 @@ struct Request
 struct Client
 {
     int portNumber;
+    char* ipAdress; // "190.255.255.255"
+};
+struct ClientListItem {
+    struct Client client;
+    struct ClientListItem* next;
 };
 struct Member
 {
@@ -42,7 +47,7 @@ struct Memory
 {
     int memNumber;
     char content [2048];
-    int lockedBy;
+    struct Client lockedBy;
     struct Member* sharedBy;
     struct Memory* next;
 };
