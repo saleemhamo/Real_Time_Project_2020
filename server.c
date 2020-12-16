@@ -17,11 +17,16 @@ Assuptions:
 
 */
 
+
+
+//must handel if the client didn't create the memory
+
+
 #include "utils.c"
 
 ///////////////////////////////////////// MemoryTable ////////////////////////////////////////
 
-struct MemoryTable *tableHead = NULL;
+struct Memory *tableHead = NULL;
 
 void addNewMember(struct Member **head_ref, int new_data)
 {
@@ -31,7 +36,8 @@ void addNewMember(struct Member **head_ref, int new_data)
     (*head_ref) = new_node;
 }
 
-void sendMembersToClientAsString(struct Member **head_ref, int socket, int memID){
+void sendMembersToClientAsString(struct Member **head_ref, int socket, int memID)
+{
     /*
     sends all clients that shared this memory as : "client1:client2:...."
     */
@@ -41,15 +47,14 @@ void sendMembersToClientAsString(struct Member **head_ref, int socket, int memID
     while (members != NULL)
     {
         sprintf(port, "%d:", members->data);
-        strcat(buffer,port);
+        strcat(buffer, port);
         members = members->next;
     }
 
     send(socket, buffer, sizeof(buffer), 1024);
 }
 
-
-void printTable(struct MemoryTable *table)
+void printTable(struct Memory *table)
 {
     /* 
     print all tables and its content
@@ -58,6 +63,7 @@ void printTable(struct MemoryTable *table)
     while (table != NULL)
     {
         printf(" %d => ", table->memoryID);
+        printf("locked by: %d\n", table->lockedBy);
         struct Member *mem = table->sharedBy;
         while (mem != NULL)
         {
@@ -69,16 +75,11 @@ void printTable(struct MemoryTable *table)
     }
 }
 
-void pushToTable(struct MemoryTable **head_ref, int memID, int port, int socket)
+struct Memory *momoryExists(struct Memory **head_ref, int memID)
 {
-    /* 
-    if the memory is new then create a new table and push the new member, reurn "1" on sucess
-    else memory exists before, then call addNewMember function to push the member to this memory
-    */
 
     int memExists = 0;
-    struct MemoryTable *exist = *head_ref;
-
+    struct Memory *exist = *head_ref;
     if (*head_ref != NULL)
     { //(*head_ref != NULL)
         while (exist != NULL)
@@ -90,7 +91,21 @@ void pushToTable(struct MemoryTable **head_ref, int memID, int port, int socket)
             }
             exist = exist->next;
         }
+        return exist;
     }
+    return NULL;
+}
+
+void pushToTable(struct Memory **head_ref, int memID, int port, int socket)
+{
+    /* 
+    if the memory is new then create a new table and push the new member, reurn "1" on sucess
+    else memory exists before, then call addNewMember function to push the member to this memory
+    */
+    struct Memory *exist = momoryExists(head_ref, memID);
+    int memExists = 0;
+    if (exist != NULL)
+        memExists = 1;
 
     if (memExists == 1)
     {
@@ -106,9 +121,10 @@ void pushToTable(struct MemoryTable **head_ref, int memID, int port, int socket)
         new_member->data = port;
         new_member->next = NULL;
 
-        struct MemoryTable *newTable = (struct MemoryTable *)malloc(sizeof(struct MemoryTable));
+        struct Memory *newTable = (struct Memory *)malloc(sizeof(struct Memory));
         newTable->memoryID = memID;
         newTable->sharedBy = new_member;
+        newTable->lockedBy = 0; 
         newTable->next = (*head_ref);
         (*head_ref) = newTable;
         send(socket, "1", sizeof("1"), 1024);
@@ -121,13 +137,32 @@ void createOrAddToSharedMemoryOperation(struct Client client, int memId, int soc
 {
     char *response;
     printf("type one request\n");
-    pushToTable(&tableHead, memId, client.portNumber,socket);
-    //copy memory and send it to client 
+    pushToTable(&tableHead, memId, client.portNumber, socket);
+    //copy memory and send it to client
     printTable(tableHead);
 }
 
-void readOperation()
+void readOperation(struct Request request, int socket)
 {
+    char sendBuffer[100];
+    struct Memory *memory = momoryExists(&tableHead,request.memId);
+    int memExists = 0;
+    if (memory != NULL)
+        memExists = 1;
+
+    if (memExists == 1)
+    {
+        if(memory->lockedBy == 0 || memory->lockedBy ==request.portNumber) {
+           // tell client that you locked it 
+           send(socket, memory->content, sizeof(memory->content), 0);
+        }
+        else{
+            send(socket, "-1", sizeof("-1"), 0);
+        }
+    } else {
+        //error
+        send(socket, "-1", sizeof("-1"), 0);
+    }
 }
 
 void writeOperation()
@@ -138,19 +173,61 @@ void copyOperation()
 {
 }
 
-void lockOperation()
-{
+void lockOperation(struct Request request, int socket)
+{ 
+    char sendBuffer[100];
+    struct Memory *memory = momoryExists(&tableHead,request.memId);
+    int memExists = 0;
+    if (memory != NULL)
+        memExists = 1;
+
+    if (memExists == 1)
+    {
+        if(memory->lockedBy == 0) {
+            memory->lockedBy = request.portNumber;
+           // tell client that you locked it 
+        }
+        sprintf(sendBuffer, "%d", memory->lockedBy);
+        send(socket, sendBuffer, sizeof(sendBuffer), 0);
+    } else {
+        //error
+        sprintf(sendBuffer, "%d",0);
+        send(socket, sendBuffer, sizeof(sendBuffer), 0);
+    }
+    printTable(tableHead);
+
+
 }
 
-void unlockOperation()
+void unLockOperation(struct Request request, int socket)
 {
+    char sendBuffer[100];
+    struct Memory *memory = momoryExists(&tableHead,request.memId);
+    int memExists = 0;
+    if (memory != NULL)
+        memExists = 1;
+
+    if (memExists == 1)
+    {
+        if(memory->lockedBy == 0 || memory->lockedBy == request.portNumber) {
+            memory->lockedBy = 0;
+           // tell client that you unlocked it 
+        }
+        sprintf(sendBuffer, "%d", memory->lockedBy);
+        send(socket, sendBuffer, sizeof(sendBuffer), 0);
+    } else {
+        //error
+        sprintf(sendBuffer, "%d", -1);
+        send(socket, sendBuffer, sizeof(sendBuffer), 0);
+    }
+    printTable(tableHead);
 }
 
 ///////////////////////////////////////// Server Handler  ////////////////////////////////////////
 
 struct Request getRequestDetails(char *buffer)
 {
-    
+
     char *token;
     struct Request *request = (struct Request *)malloc(sizeof(struct Request));
     token = strtok(buffer, ":");
@@ -180,7 +257,7 @@ void serverHandler(void *socket)
     }
     else if (request.type == READ)
     {
-        readOperation();
+        readOperation(request, new_socket);
     }
     else if (request.type == WRITE)
     {
@@ -192,9 +269,11 @@ void serverHandler(void *socket)
     }
     else if (request.type == LOCK)
     {
+        lockOperation(request, new_socket);
     }
     else if (request.type == UNLOCK)
     {
+        unLockOperation(request, new_socket);
     }
     else
     {
