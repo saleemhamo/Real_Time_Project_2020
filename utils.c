@@ -9,7 +9,7 @@
 
 
 // #define PORT 9999
-#define SERVERPORT 9999
+#define SERVERPORT 9995
 #define HOSTIP "localhost"
 
 enum OPERATION
@@ -47,7 +47,7 @@ struct Memory
 {
     int memNumber;
     char content [2048];
-    struct Client lockedBy;
+    // struct Client lockedBy;
     struct Member* sharedBy;
     struct Memory* next;
 };

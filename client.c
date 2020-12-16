@@ -3,6 +3,8 @@
 int port;
 int memId;
 
+struct Memory *memoryHead = NULL;
+
 ///////////////////////////////////////// Socket Handling  //////////////////////////////////////
 int createSocket(int PORT)
 {
@@ -15,9 +17,7 @@ Returns - socker file discriptor
     static struct sockaddr_in host_adr;
     char hello[10];
     char buffer[1024];
-
-    sprintf(hello, "%d", port);
-
+    // sprintf(hello, "%d", port);
     struct hostent *host;
     host = gethostbyname(HOSTIP); //returns the ip and the address to connect to
     if (host == (struct hostent *)NULL)
@@ -45,6 +45,32 @@ Returns - socker file discriptor
 }
 
 ///////////////////////////////////////// Main Operation ////////////////////////////////////////
+
+void printMemory(struct Memory *memory)
+{
+    /* 
+    print all client memories with its attributes
+    @params: - memory table refrence to be printed
+    */
+    
+    while (memory != NULL)
+    {
+        printf(" \n*********************************** \n");
+        printf(" memory id: %d => \n", memory->memNumber);
+        printf("CONTENT: [%s]\n",memory->content);
+        printf("shared by: ");
+        struct Member *mem = memory->sharedBy;
+        while (mem != NULL)
+        {
+            printf(" %d ,", mem->data);
+            mem = mem->next;
+        }
+        // printf("\n \n");
+        memory = memory->next;
+        printf("\n*********************************** \n");
+    }
+}
+
 struct Request initializeRequest(int requestType)
 {
     struct Request *request = (struct Request *)malloc(sizeof(struct Request));
@@ -54,30 +80,76 @@ struct Request initializeRequest(int requestType)
     return *request;
 }
 
-void createMemory()
+void restructStringAsMembers(struct Member **head_ref, char* members){
+    /*
+    transform the members string to struct members, add them to memory
+    @params: - head_ref: member refrence of new memory (where to add the members)
+             - members: members of memory as string "client1:client2:..."
+    */
+    char* token;
+    int num;
+    token = strtok(members, ":");
+    num = atoi(token);
+    while(token != NULL){
+        num = atoi(token);
+        struct Member *newMember= (struct Member *)malloc(sizeof(struct Member));
+        newMember->data = num;
+        newMember->next = (*head_ref);
+        (*head_ref) = newMember;
+        printf("[%d]",num);
+        token = strtok(NULL, ":");
+    }
+}
+
+void makeNewMemory(struct Memory **head_ref, char * content, char* members){
+    /*
+    make a memory in the client with fields
+    */
+    struct Memory *newMemory = (struct Memory *)malloc(sizeof(struct Memory));
+    newMemory-> memNumber = memId;
+    strcpy( newMemory->content, content);
+    restructStringAsMembers(&newMemory->sharedBy, members);
+    newMemory->next = (*head_ref);
+    (*head_ref) = newMemory;
+}
+
+void createMemoryRequest()
 {
     /*
     expected: 0 on sucess not existed mem
-            ..... on sucess existed mem
+             "client1:client2:...." on sucess existed mem
             -1 on failure 
     */
-
     struct Request request = initializeRequest(CREATE);
     char readBuffer[1024];
     char sendBuffer[100];
     sprintf(sendBuffer, "%d:%d:%d", request.portNumber, request.memId, request.type);
     int sock = createSocket(SERVERPORT);
+
+    //handel if the client already has the memory ...........................
+
     send(sock, sendBuffer, sizeof(sendBuffer), 0); //send client id
     read(sock, readBuffer, 1024);
     printf("I received [%s]\n", readBuffer);
-    // if(atoi(readBuffer) == -1){
-    //     perror("error in connection");
-    //     exit(1);
-    // }
-    // else
-    // {
-    //     printf("connected\n");
-    // }
+
+    if(atoi(readBuffer) == -1){//unsucessful creation
+        perror("error in connection");
+        exit(1);
+    }
+    else if(atoi(readBuffer) == 1) {//new memroy creation
+        printf("new memory\n");
+        //create a new memory with memid and one member with no content
+        sprintf(readBuffer,"%d:",port);
+        makeNewMemory(&memoryHead, "", readBuffer);
+        printMemory(memoryHead);
+    }
+    else{//already exists memroy
+        //create a new memory for this client with memid
+        //request a copy
+        makeNewMemory(&memoryHead, "dummy content", readBuffer);
+        printMemory(memoryHead);
+    }
+
 }
 
 void readMemory()
@@ -169,7 +241,7 @@ int main()
         {
         case 1: // CREATE
             printf("insdie case 1\n");
-            createMemory();
+            createMemoryRequest();
             printf("after create memory in case 1\n");
             break;
 
