@@ -47,7 +47,7 @@ struct Memory
 {
     int memNumber;
     char content [2048];
-    struct Client lockedBy;
+    // struct Client lockedBy;
     struct Member* sharedBy;
     struct Memory* next;
 };

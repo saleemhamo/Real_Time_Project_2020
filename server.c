@@ -23,15 +23,31 @@ Assuptions:
 
 struct MemoryTable *tableHead = NULL;
 
-char *addNewMember(struct Member **head_ref, int new_data)
+void addNewMember(struct Member **head_ref, int new_data)
 {
-    char *members = "1:2:3:4:5";
     struct Member *new_node = (struct Member *)malloc(sizeof(struct Member));
     new_node->data = new_data;
     new_node->next = (*head_ref);
     (*head_ref) = new_node;
-    return members;
 }
+
+void sendMembersToClientAsString(struct Member **head_ref, int socket, int memID){
+    /*
+    sends all clients that shared this memory as : "client1:client2:...."
+    */
+    char buffer[2000];
+    char port[40];
+    struct Member *members = *head_ref;
+    while (members != NULL)
+    {
+        sprintf(port, "%d:", members->data);
+        strcat(buffer,port);
+        members = members->next;
+    }
+
+    send(socket, buffer, sizeof(buffer), 1024);
+}
+
 
 void printTable(struct MemoryTable *table)
 {
@@ -53,7 +69,7 @@ void printTable(struct MemoryTable *table)
     }
 }
 
-char *pushToTable(struct MemoryTable **head_ref, int memID, int port)
+void pushToTable(struct MemoryTable **head_ref, int memID, int port, int socket)
 {
     /* 
     if the memory is new then create a new table and push the new member, reurn "1" on sucess
@@ -78,8 +94,11 @@ char *pushToTable(struct MemoryTable **head_ref, int memID, int port)
 
     if (memExists == 1)
     {
+        char memberss[1024];
         printf("the memory exists before\n");
-        return addNewMember(&exist->sharedBy, port);
+        //request a lock here to memid by this this client
+        addNewMember(&exist->sharedBy, port);
+        sendMembersToClientAsString(&exist->sharedBy, socket, memID);
     }
     else
     {
@@ -92,7 +111,7 @@ char *pushToTable(struct MemoryTable **head_ref, int memID, int port)
         newTable->sharedBy = new_member;
         newTable->next = (*head_ref);
         (*head_ref) = newTable;
-        return "1";
+        send(socket, "1", sizeof("1"), 1024);
     }
 }
 
@@ -102,9 +121,8 @@ void createOrAddToSharedMemoryOperation(struct Client client, int memId, int soc
 {
     char *response;
     printf("type one request\n");
-    response = pushToTable(&tableHead, memId, client.portNumber);
-    send(socket, response, sizeof(response), 0);
-    //send mem to client
+    pushToTable(&tableHead, memId, client.portNumber,socket);
+    //copy memory and send it to client 
     printTable(tableHead);
 }
 
@@ -237,4 +255,4 @@ int main(void)
 
     return 0;
 }
-////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////fgfg//////////////////////////////////
