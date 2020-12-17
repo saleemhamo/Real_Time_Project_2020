@@ -20,6 +20,7 @@ Assuptions:
 
 
 //must handel if the client didn't create the memory
+//inform client about lock (when create memory)
 
 
 #include "utils.c"
@@ -111,7 +112,6 @@ void pushToTable(struct Memory **head_ref, int memID, int port, int socket)
     {
         char memberss[1024];
         printf("the memory exists before\n");
-        //request a lock here to memid by this this client
         addNewMember(&exist->sharedBy, port);
         sendMembersToClientAsString(&exist->sharedBy, socket, memID);
     }
@@ -169,12 +169,32 @@ void writeOperation()
 {
 }
 
-void copyOperation()
+void copyOperation(struct Request request, int socket)
 {
+    char sendBuffer[100];
+    struct Memory *memory = momoryExists(&tableHead,request.memId);
+    int memExists = 0;
+    if (memory != NULL)
+        memExists = 1;
+
+    if (memExists == 1)
+    {
+        if(memory->lockedBy == 0 || memory->lockedBy ==request.portNumber) {
+           // tell client that you locked it 
+           send(socket, memory->content, sizeof(memory->content), 0);
+        }
+        else{
+            send(socket, "-1", sizeof("-1"), 0);
+        }
+    } else {
+        //error
+        send(socket, "-1", sizeof("-1"), 0);
+    }
 }
 
 void lockOperation(struct Request request, int socket)
 { 
+    printf("2\n");
     char sendBuffer[100];
     struct Memory *memory = momoryExists(&tableHead,request.memId);
     int memExists = 0;
@@ -186,9 +206,17 @@ void lockOperation(struct Request request, int socket)
         if(memory->lockedBy == 0) {
             memory->lockedBy = request.portNumber;
            // tell client that you locked it 
+           sprintf(sendBuffer, "%d", memory->lockedBy);
+            send(socket, sendBuffer, sizeof(sendBuffer), 0);
         }
-        sprintf(sendBuffer, "%d", memory->lockedBy);
-        send(socket, sendBuffer, sizeof(sendBuffer), 0);
+        else{
+            while(memory->lockedBy !=0 && memory->lockedBy != request.portNumber);
+            memory->lockedBy = request.portNumber;
+            // tell client that you locked it 
+            sprintf(sendBuffer, "%d", memory->lockedBy);
+            send(socket, sendBuffer, sizeof(sendBuffer), 0);
+        }
+        
     } else {
         //error
         sprintf(sendBuffer, "%d",0);
@@ -265,7 +293,7 @@ void serverHandler(void *socket)
     }
     else if (request.type == COPY)
     {
-        copyOperation();
+        copyOperation(request, new_socket);
     }
     else if (request.type == LOCK)
     {
@@ -328,7 +356,7 @@ int main(void)
         }
         pthread_t thread;
         pthread_create(&thread, NULL, (void *)serverHandler, (void *)&new_sock);
-        pthread_join(thread, NULL);
+        // pthread_join(thread, NULL);
         printf("after thread\n");
     }
 

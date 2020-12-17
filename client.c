@@ -105,16 +105,22 @@ void lockMemory()
     int sock = createSocket(SERVERPORT);
     send(sock, sendBuffer, sizeof(sendBuffer), 0); //send client id
     read(sock, readBuffer, 1024);
+    printf("after read in lock [%s]\n",readBuffer);
 
     //server returns senders  port  number if it's not locked and locks it for sender
     //else it returns the port number of the client locking it
     //if an error ocures it will receive 0
 
-    while (atoi(readBuffer) != 0 && atoi(readBuffer) != request.portNumber)
-    {
-        send(sock, sendBuffer, sizeof(sendBuffer), 0); //send client id
-        read(sock, readBuffer, 1024);
-    }
+    // while (atoi(readBuffer) != 0 && atoi(readBuffer) != request.portNumber)
+    // {
+    //     // sock = createSocket(SERVERPORT);
+    //     printf("before send\n");
+    //     send(sock, sendBuffer, sizeof(sendBuffer), 0); //send client id
+    //     printf("after send\n");
+    //     read(sock, readBuffer, 1024);
+    //     printf("1\n");
+    // }
+    // printf("after while\n");
     if (atoi(readBuffer) != 0)
     {
         struct Memory *memory = findMemory(request.memId);
@@ -159,6 +165,32 @@ void unlockMemory()
     }
 
     printMemory(memoryHead);
+}
+
+void copyMemory()
+{
+    lockMemory();
+    struct Request request = initializeRequest(COPY);
+    char readBuffer[1024];
+    char sendBuffer[100];
+    sprintf(sendBuffer, "%d:%d:%d", request.portNumber, request.memId, request.type);
+    int sock = createSocket(SERVERPORT);
+    send(sock, sendBuffer, sizeof(sendBuffer), 0); //send client id
+    read(sock, readBuffer, 1024);
+
+    if(atoi(readBuffer) != -1){
+        printf("the content received :[%s]\n",readBuffer);
+        struct Memory *memory = findMemory(request.memId);
+        if (memory != NULL)
+        {
+            strcpy(memory->content, readBuffer);
+        }
+    }
+    else
+    {
+        printf("ERROR : can't be read\n");
+    }
+    unlockMemory();
 }
 
 void restructStringAsMembers(struct Member **head_ref, char *members)
@@ -231,9 +263,10 @@ void createMemoryRequest()
     }
     else
     { //already exists memroy
-        //create a new memory for this client with memid
-        //request a copy
         makeNewMemory(&memoryHead, "dummy content", readBuffer);
+        //create a new memory for this client with memid
+        //request a copy that make lock then copy
+        copyMemory();
         printMemory(memoryHead);
     }
 }
@@ -280,16 +313,7 @@ void writeIntoMemory()
     read(sock, readBuffer, 1024);
 }
 
-void copyMemory()
-{
-    struct Request request = initializeRequest(COPY);
-    char readBuffer[1024];
-    char sendBuffer[100];
-    sprintf(sendBuffer, "%d:%d:%d", request.portNumber, request.memId, request.type);
-    int sock = createSocket(SERVERPORT);
-    send(sock, sendBuffer, sizeof(sendBuffer), 0); //send client id
-    read(sock, readBuffer, 1024);
-}
+
 
 void talkTo(int portToTalk)
 {
