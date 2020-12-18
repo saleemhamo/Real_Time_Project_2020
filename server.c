@@ -20,10 +20,10 @@ Assuptions:
 
 
 //must handel if the client didn't create the memory
-//inform client about lock (when create memory)
-//now the client can lock,unlock,read,copy the memory even if not a member in it
-// the client can be added to same memory many times
-//print error in RED
+//inform client about changes in memroy
+//now the client can lock,unlock,read,copy the memory even if not a member in it Done
+// the client can be added to same memory many times    Done
+//print error in RED    Done
 
 
 #include "utils.c"
@@ -63,10 +63,10 @@ void printTable(struct Memory *table)
     /* 
     print all tables and its content
     */
-    printf("start print \n........... \n");
+    printf("start print \n*************************** \n");
     while (table != NULL)
     {
-        printf("| %d | => ", table->memoryID);
+        printf(BLU"| %d | => ", table->memoryID);
         printf("locked by: %d\n", table->lockedBy);
         printf("content [%s]\n", table->content);
         printf("Members: ");
@@ -76,7 +76,7 @@ void printTable(struct Memory *table)
             printf(" %d ,", mem->data);
             mem = mem->next;
         }
-        printf("\n \n");
+        printf(RESET"\n ----------------------");
         table = table->next;
     }
 }
@@ -214,7 +214,45 @@ void readOperation(struct Request request, int socket)
 
 void writeOperation(struct Request request, int socket)
 {
-    
+    /*
+    return -1 when the memory doesn't exist then end
+            -2 when the client is not member of the memry then end
+            1 so the client can write then server add new data to memroy and return index of new data
+    */
+    char sendBuffer[100];
+    char readBuffer[1024];
+    struct Memory *memory = momoryExists(&tableHead,request.memId);
+    int memExists = 0;
+    int clienInMemory =0;
+
+    if (memory != NULL){
+        memExists = 1;
+        clienInMemory =clientExistsInMemory(&memory, request.portNumber);
+    }
+        
+    if (memExists == 0 )
+    {
+        // //error
+        sprintf(sendBuffer, "%d",-1);
+        send(socket, sendBuffer, sizeof(sendBuffer), 0);   
+    } 
+    else if(clienInMemory == 0){
+        // //error
+        sprintf(sendBuffer, "%d",-2);
+        send(socket, sendBuffer, sizeof(sendBuffer), 0);  
+    }
+    else
+    {
+        send(socket, "1", sizeof("1"),0);
+        //wait the client to send data to be written
+        read(socket, readBuffer, 1024);
+        printf("******[%s]******* data received\n",readBuffer);
+        sprintf(sendBuffer, "%d", (int)strlen(memory->content));//index of new data
+        strcat(memory->content, readBuffer);
+        send(socket, sendBuffer, sizeof(sendBuffer), 0); 
+        
+        printTable(tableHead);
+    }
 
 }
 

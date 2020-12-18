@@ -71,7 +71,7 @@ void printMemory(struct Memory *memory)
     while (memory != NULL)
     {
         
-        printf(" memory id: %d => \n", memory->memoryID);
+        printf(BLU" memory id: %d => \n", memory->memoryID);
         printf("CONTENT: [%s]\n", memory->content);
         printf("locked by: %d\n", memory->lockedBy);
         printf("shared by: ");
@@ -83,7 +83,7 @@ void printMemory(struct Memory *memory)
         }
         // printf("\n \n");
         memory = memory->next;
-        printf("\n-------------------\n");
+        printf(RESET"\n-------------------\n");
     }
 }
 
@@ -115,9 +115,9 @@ void lockMemory()
     printf("after read in lock [%s]\n",readBuffer);
 
     if(atoi(readBuffer) == -1)
-        printf("ERROR : the memory doesn't exist\n");
+        printf(RED "ERROR : the memory doesn't exist\n" RESET);
     else if(atoi(readBuffer) == -2)
-        printf("ERROR : the client is not member of the memory\n");
+        printf(RED "ERROR : the client is not member of the memory\n" RESET);
     else
     {
         struct Memory *memory = findMemory(request.memId);
@@ -147,9 +147,9 @@ void unlockMemory()
     read(sock, readBuffer, 1024);
 
     if(atoi(readBuffer) == -1)
-        printf("ERROR : the memory doesn't exist\n");
+        printf(RED "ERROR : the memory doesn't exist\n" RESET);
     else if(atoi(readBuffer) == -2)
-        printf("ERROR : the client is not member of the memory\n");
+        printf(RED "ERROR : the client is not member of the memory\n" RESET);
 
     else
     {
@@ -182,11 +182,11 @@ void copyMemory()
     read(sock, readBuffer, 1024);
 
     if(atoi(readBuffer) == -1)
-        printf("ERROR : the memory doesn't exist\n");
+        printf(RED "ERROR : the memory doesn't exist\n" RESET);
     else if(atoi(readBuffer) == -2)
-        printf("ERROR : the client is not member of the memory\n");
+        printf(RED "ERROR : the client is not member of the memory\n" RESET);
     else if(atoi(readBuffer) == -3)
-        printf("ERROR : Memory is locked by another client\n");
+        printf(RED "ERROR : Memory is locked by another client\n" RESET);
     else{
         printf("the content received :[%s]\n",readBuffer);
         struct Memory *memory = findMemory(request.memId);
@@ -260,7 +260,7 @@ void createMemoryRequest()
         exit(1);
     }
     else if (atoi(readBuffer) == -4){
-        printf("ERROR : the client already in the memory\n");
+        printf(RED "ERROR : the client already in the memory\n" RESET);
     }
     else if (atoi(readBuffer) == 1)
     { //new memroy creation
@@ -297,11 +297,11 @@ void readMemory()
     read(sock, readBuffer, 1024);
 
     if(atoi(readBuffer) == -1)
-        printf("ERROR : the memory doesn't exist\n");
+        printf(RED "ERROR : the memory doesn't exist\n" RESET);
     else if(atoi(readBuffer) == -2)
-        printf("ERROR : the client is not member of the memory\n");
+        printf(RED "ERROR : the client is not member of the memory\n" RESET);
     else if(atoi(readBuffer) == -3)
-        printf("ERROR : Memory is locked by another client\n");
+        printf(RED "ERROR : Memory is locked by another client\n" RESET);
 
     else{
         printf("the content received :[%s]\n",readBuffer);
@@ -318,7 +318,29 @@ void readMemory()
 
 void writeIntoMemory()
 {
+    lockMemory();
+    struct Request request = initializeRequest(WRITE);
+    char readBuffer[100];
+    char sendBuffer[1024]; // with updates
 
+    sprintf(sendBuffer, "%d:%d:%d", request.portNumber, request.memId, request.type);
+    int sock = createSocket(SERVERPORT);
+    send(sock, sendBuffer, sizeof(sendBuffer), 0); //send client id
+    read(sock, readBuffer, 1024);
+
+    if(atoi(readBuffer) == -1)
+        printf(RED "ERROR : the memory doesn't exist\n" RESET);
+    else if(atoi(readBuffer) == -2)
+        printf(RED "ERROR : the client is not member of the memory\n" RESET);
+    else{
+        printf("*********************\n");
+        printf("Enter data to be written:\n");
+        scanf("%s",sendBuffer);
+        send(sock, sendBuffer, sizeof(sendBuffer), 0);
+        read(sock, readBuffer, 1024);//index of new data
+        printf("******[%s]*******\n",readBuffer); 
+    }
+    unlockMemory();
 }
 
 
@@ -359,14 +381,14 @@ int main()
         printf("Enter memory ID you want to work on\n");
         scanf("%d", &memId);
         printf("Enter the type of request\n");
-        printf(" --------------------------------\n");
+        printf(CYN" --------------------------------\n");
         printf("| 1- Create a Shared Memory      |\n");
         printf("| 2- Read a Shared Memory        |\n");
         printf("| 3- Write into a Shared Memory  |\n");
         printf("| 4- Copy a Shared Memory        |\n");
-        printf("| 5- lock memory              |\n");
-        printf("| 6- unlock memory              |\n");
-        printf(" --------------------------------\n");
+        printf("| 5- lock memory                 |\n");
+        printf("| 6- unlock memory               |\n");
+        printf(" --------------------------------\n"RESET);
 
         scanf("%d", &ans);
 

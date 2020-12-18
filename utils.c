@@ -12,6 +12,10 @@
 #define SERVERPORT 9999
 #define HOSTIP "localhost"
 #define MEMORYCAPACITY 2048
+#define RED   "\x1B[31m"
+#define RESET "\x1B[0m"
+#define BLU   "\x1B[34m"
+#define CYN   "\x1B[36m"
 
 enum OPERATION
 {
