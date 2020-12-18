@@ -76,7 +76,7 @@ void printTable(struct Memory *table)
             printf(" %d ,", mem->data);
             mem = mem->next;
         }
-        printf(RESET"\n ----------------------");
+        printf(RESET"\n ----------------------\n");
         table = table->next;
     }
 }
@@ -472,7 +472,7 @@ int main(void)
         exit(2);
     }
 
-    if (listen(orig_sock, 5) < 0)
+    if (listen(orig_sock, 10) < 0)
     { //can listen for 5
         perror("listen Socket error");
         close(orig_sock);

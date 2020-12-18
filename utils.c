@@ -9,9 +9,9 @@
 
 
 // #define PORT 9999
-#define SERVERPORT 9999
+#define SERVERPORT 9995
 #define HOSTIP "localhost"
-#define MEMORYCAPACITY 2048
+#define MEMORYCAPACITY 4096
 #define RED   "\x1B[31m"
 #define RESET "\x1B[0m"
 #define BLU   "\x1B[34m"
@@ -25,6 +25,12 @@ enum OPERATION
     COPY,
     LOCK,
     UNLOCK
+};
+
+enum CHANGE  {
+    LOCK,
+    UNLOCK,
+    CONTENT
 };
 
 struct Request
