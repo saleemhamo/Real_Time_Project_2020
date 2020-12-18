@@ -67,9 +67,10 @@ void printMemory(struct Memory *memory)
     @params: - memory table refrence to be printed
     */
 
+    printf(" \n*********************************** \n");
     while (memory != NULL)
     {
-        printf(" \n*********************************** \n");
+        
         printf(" memory id: %d => \n", memory->memoryID);
         printf("CONTENT: [%s]\n", memory->content);
         printf("locked by: %d\n", memory->lockedBy);
@@ -82,7 +83,7 @@ void printMemory(struct Memory *memory)
         }
         // printf("\n \n");
         memory = memory->next;
-        printf("\n*********************************** \n");
+        printf("\n-------------------\n");
     }
 }
 
@@ -97,6 +98,12 @@ struct Request initializeRequest(int requestType)
 
 void lockMemory()
 {
+    /*
+    server
+    return -1 when the memory doesn't exist
+            -2 when the client is not member of the memry
+            client prot number when sucess
+    */
 
     struct Request request = initializeRequest(LOCK);
     char readBuffer[1024];
@@ -107,21 +114,11 @@ void lockMemory()
     read(sock, readBuffer, 1024);
     printf("after read in lock [%s]\n",readBuffer);
 
-    //server returns senders  port  number if it's not locked and locks it for sender
-    //else it returns the port number of the client locking it
-    //if an error ocures it will receive 0
-
-    // while (atoi(readBuffer) != 0 && atoi(readBuffer) != request.portNumber)
-    // {
-    //     // sock = createSocket(SERVERPORT);
-    //     printf("before send\n");
-    //     send(sock, sendBuffer, sizeof(sendBuffer), 0); //send client id
-    //     printf("after send\n");
-    //     read(sock, readBuffer, 1024);
-    //     printf("1\n");
-    // }
-    // printf("after while\n");
-    if (atoi(readBuffer) != 0)
+    if(atoi(readBuffer) == -1)
+        printf("ERROR : the memory doesn't exist\n");
+    else if(atoi(readBuffer) == -2)
+        printf("ERROR : the client is not member of the memory\n");
+    else
     {
         struct Memory *memory = findMemory(request.memId);
         if (memory != NULL)
@@ -135,6 +132,12 @@ void lockMemory()
 
 void unlockMemory()
 {
+    /*
+    server
+    return -1 when the memory doesn't exist
+            -2 when the client is not member of the memry
+            0 when sucess
+    */
     struct Request request = initializeRequest(UNLOCK);
     char readBuffer[1024];
     char sendBuffer[100];
@@ -143,11 +146,12 @@ void unlockMemory()
     send(sock, sendBuffer, sizeof(sendBuffer), 0); //send client id
     read(sock, readBuffer, 1024);
 
-    //server returns senders  port  number if it's not locked and locks it for sender
-    //else it returns the port number of the client locking it
-    //if an error ocures it will receive 0
+    if(atoi(readBuffer) == -1)
+        printf("ERROR : the memory doesn't exist\n");
+    else if(atoi(readBuffer) == -2)
+        printf("ERROR : the client is not member of the memory\n");
 
-    if (atoi(readBuffer) == 0)
+    else
     {
         struct Memory *memory = findMemory(request.memId);
         if (memory != NULL)
@@ -155,20 +159,19 @@ void unlockMemory()
             memory->lockedBy = 0;
         }
     }
-    else if(atoi(readBuffer) == -1){
-        printf("memory doesn't exist\n");
-    }
-    else
-    {
-        printf("can't unlock this memory, sic=nce you are not lockiing it\n");
-        //error : can't unlock this memory, sic=nce you are not lockiing it
-    }
+
 
     printMemory(memoryHead);
 }
 
 void copyMemory()
 {
+    /*
+    server return -1 when the memory doesn't exist
+                  -2 when the client is not member of the memry
+                  -3 when the memory is locked by another
+                  [content] when sucess
+    */
     lockMemory();
     struct Request request = initializeRequest(COPY);
     char readBuffer[1024];
@@ -178,17 +181,19 @@ void copyMemory()
     send(sock, sendBuffer, sizeof(sendBuffer), 0); //send client id
     read(sock, readBuffer, 1024);
 
-    if(atoi(readBuffer) != -1){
+    if(atoi(readBuffer) == -1)
+        printf("ERROR : the memory doesn't exist\n");
+    else if(atoi(readBuffer) == -2)
+        printf("ERROR : the client is not member of the memory\n");
+    else if(atoi(readBuffer) == -3)
+        printf("ERROR : Memory is locked by another client\n");
+    else{
         printf("the content received :[%s]\n",readBuffer);
         struct Memory *memory = findMemory(request.memId);
         if (memory != NULL)
         {
             strcpy(memory->content, readBuffer);
         }
-    }
-    else
-    {
-        printf("ERROR : can't be read\n");
     }
     unlockMemory();
 }
@@ -232,9 +237,10 @@ void makeNewMemory(struct Memory **head_ref, char *content, char *members)
 void createMemoryRequest()
 {
     /*
-    expected: 0 on sucess not existed mem
+    expected: 1 on sucess not existed mem
+             -1 on failure 
+             -4 if the client already in the memroy
              "client1:client2:...." on sucess existed mem
-            -1 on failure 
     */
     struct Request request = initializeRequest(CREATE);
     char readBuffer[1024];
@@ -252,6 +258,9 @@ void createMemoryRequest()
     { //unsucessful creation
         perror("error in connection");
         exit(1);
+    }
+    else if (atoi(readBuffer) == -4){
+        printf("ERROR : the client already in the memory\n");
     }
     else if (atoi(readBuffer) == 1)
     { //new memroy creation
@@ -273,6 +282,12 @@ void createMemoryRequest()
 
 void readMemory()
 {
+    /*
+    server return -1 when the memory doesn't exist
+                  -2 when the client is not member of the memry
+                  -3 when the memory is locked by another
+                  [content] when sucess
+    */
     struct Request request = initializeRequest(READ);
     char readBuffer[1024];
     char sendBuffer[100];
@@ -281,7 +296,14 @@ void readMemory()
     send(sock, sendBuffer, sizeof(sendBuffer), 0); //send client id
     read(sock, readBuffer, 1024);
 
-    if(atoi(readBuffer) != -1){
+    if(atoi(readBuffer) == -1)
+        printf("ERROR : the memory doesn't exist\n");
+    else if(atoi(readBuffer) == -2)
+        printf("ERROR : the client is not member of the memory\n");
+    else if(atoi(readBuffer) == -3)
+        printf("ERROR : Memory is locked by another client\n");
+
+    else{
         printf("the content received :[%s]\n",readBuffer);
         struct Memory *memory = findMemory(request.memId);
         if (memory != NULL)
@@ -289,11 +311,6 @@ void readMemory()
             strcpy(memory->content, readBuffer);
         }
     }
-    else
-    {
-        printf("ERROR : can't be read\n");
-    }
-    
 
     //Rad Memory Logic if not locked ....
     // printf("I received [%s]\n", readBuffer);
@@ -301,16 +318,7 @@ void readMemory()
 
 void writeIntoMemory()
 {
-    struct Request request = initializeRequest(WRITE);
-    char readBuffer[1024];
-    char sendBuffer[100]; // with updates
 
-    // add logic of updating memory
-
-    sprintf(sendBuffer, "%d:%d:%d", request.portNumber, request.memId, request.type);
-    int sock = createSocket(SERVERPORT);
-    send(sock, sendBuffer, sizeof(sendBuffer), 0); //send client id
-    read(sock, readBuffer, 1024);
 }
 
 
@@ -365,9 +373,7 @@ int main()
         switch (ans)
         {
         case 1: // CREATE
-            printf("insdie case 1\n");
             createMemoryRequest();
-            printf("after create memory in case 1\n");
             break;
 
         case 2: // READ

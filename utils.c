@@ -11,6 +11,7 @@
 // #define PORT 9999
 #define SERVERPORT 9999
 #define HOSTIP "localhost"
+#define MEMORYCAPACITY 2048
 
 enum OPERATION
 {
@@ -46,8 +47,7 @@ struct Member
 struct Memory
 {
     int memoryID;
-    char content [2048];
-    // struct Member lockedBy;
+    char content [MEMORYCAPACITY];
     int lockedBy;
 
     struct Member* sharedBy;
