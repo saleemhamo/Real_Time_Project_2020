@@ -6,11 +6,12 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <sys/mman.h>
 
 // #define PORT 9999
-#define SERVERPORT 9996
+#define SERVERPORT 2270
 #define HOSTIP "localhost"
-#define MEMORYCAPACITY 4096
+#define MEMORYCAPACITY 4297
 #define RED "\x1B[31m"
 #define RESET "\x1B[0m"
 #define BLU "\x1B[34m"
@@ -23,7 +24,8 @@ enum OPERATION
     WRITE,
     COPY,
     LOCK,
-    UNLOCK
+    UNLOCK,
+    TALKTO
 };
 
 enum CHANGE
@@ -123,7 +125,7 @@ Returns - socker file discriptor
 
 struct Memory *memoryExists(struct Memory **head_ref, int memID)
 {
-
+    printf("memory exist started\n");
     int memExists = 0;
     struct Memory *exist = *head_ref;
     if (*head_ref != NULL)
@@ -137,7 +139,9 @@ struct Memory *memoryExists(struct Memory **head_ref, int memID)
             }
             exist = exist->next;
         }
+        printf("memory exist finished\n");
         return exist;
     }
+    printf("memory exist finished with null\n");
     return NULL;
 }

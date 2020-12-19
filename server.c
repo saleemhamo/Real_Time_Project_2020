@@ -51,7 +51,8 @@ void notifyUpdates(struct Change *change, int clientPort)
     char sendBuffer[1024];
     sprintf(sendBuffer, "%d:%d:%s:%d:%d:%d", change->type, change->memId, change->content, change->updateContentIndex, change->newMemberId, change->lockedBy);
     // sprintf(sendBuffer, "%d:%d:%d:%d:%d", change->type, change->memId,change->updateContentIndex, change->newMemberId, change->lockedBy);
-
+    printf("I entered NU with type %d of memory %d to client %d\n",change->type, change->memId, clientPort);
+    sleep(2);
     int sock = createSocket(clientPort);
     printf("Inside notify: Client: %d, Memory: %d\n", clientPort, change->memId);
     send(sock, sendBuffer, sizeof(sendBuffer), 0); //send updates
@@ -153,6 +154,7 @@ void pushToTable(struct Memory **head_ref, int memID, int port, int socket)
     }
     else
     {
+        while(memory->lockedBy != 0);
         if (clienInMemory == 1)
         {
             // //error
@@ -179,14 +181,14 @@ void createOrAddToSharedMemoryOperation(struct Client client, int memId, int soc
 
     // update other clients with changes
     struct Change *changes = createChangeObject(SHAREDBY_CHANGE, memId, "Nothing Changed!", -1, client.portNumber, -1);
-    // // find clients and update them
-    // struct Memory *memory = memoryExists(&tableHead, memId);
-    // struct Member *memberPtr = memory->sharedBy;
-    // while (memberPtr != NULL)
-    // {
-    //     notifyUpdates(changes, memberPtr->data);
-    //     memberPtr = memberPtr->next;
-    // }
+    // find clients and update them
+    struct Memory *memory = memoryExists(&tableHead, memId);
+    struct Member *memberPtr = memory->sharedBy;
+    while (memberPtr != NULL)
+    {
+        notifyUpdates(changes, memberPtr->data);
+        memberPtr = memberPtr->next;
+    }
 
     printTable(tableHead);
 }
@@ -281,13 +283,13 @@ void writeOperation(struct Request request, int socket)
         // update other clients with changes
         struct Change *changes = createChangeObject(CONTENT_CHANGE, memory->memoryID, readBuffer, newDataIndex, -1, -1);
         // find clients and update them
-        // struct Member *memberPtr = memory->sharedBy;
-        // while (memberPtr != NULL)
-        // {
-        //     notifyUpdates(changes, memberPtr->data);
-        //             memberPtr = memberPtr->next;
+        struct Member *memberPtr = memory->sharedBy;
+        while (memberPtr != NULL)
+        {
+            notifyUpdates(changes, memberPtr->data);
+                    memberPtr = memberPtr->next;
 
-        // }
+        }
 
         printTable(tableHead);
     }
@@ -397,6 +399,7 @@ void lockOperation(struct Request request, int socket)
         {
             // printf("Member: %d\n", memberPtr->data);
 
+            printf("1....\n");
             notifyUpdates(changes, memberPtr->data);
             memberPtr = memberPtr->next;
 
@@ -449,12 +452,12 @@ void lockOperation(struct Request request, int socket)
             // update other clients with changes
             struct Change *changes = createChangeObject(UNLOCK_CHANGE, memory->memoryID, "Nothing Changed!", -1, -1, 0);
             // find clients and update them
-            // struct Member *memberPtr = memory->sharedBy;
-            // while (memberPtr != NULL)
-            // {
-            //     notifyUpdates(changes, memberPtr->data);
-            //             memberPtr = memberPtr->next;
-            // }
+            struct Member *memberPtr = memory->sharedBy;
+            while (memberPtr != NULL)
+            {
+                notifyUpdates(changes, memberPtr->data);
+                        memberPtr = memberPtr->next;
+            }
         }
         printTable(tableHead);
     }
@@ -510,6 +513,11 @@ void lockOperation(struct Request request, int socket)
         else if (request.type == UNLOCK)
         {
             unLockOperation(request, new_socket);
+        }
+        else if (request.type == TALKTO)
+        {
+            // printf("I readd [%s]\n",buffer);
+            send(new_socket, "HIII", sizeof("HIII"), 0);
         }
         else
         {
