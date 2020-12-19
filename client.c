@@ -5,9 +5,22 @@ int memId;
 
 struct Memory *memoryHead = NULL;
 
+void printMemories()
+{
+    struct Memory *memoryPtr = memoryHead;
+    printf("----------------------");
+    printf("Memories:");
+    while (memoryPtr != NULL)
+    {
+        printf("Memory ID: %d\n", memoryPtr->memoryID);
+        memoryPtr = memoryPtr->next;
+    }
+    printf("----------------------");
+}
+
 struct Memory *findMemory(int memoryId)
 {
-
+    printf("Searching for: %d", memoryId);
     struct Memory *memoryPtr = memoryHead;
     while (memoryPtr != NULL)
     {
@@ -15,63 +28,90 @@ struct Memory *findMemory(int memoryId)
         {
             return memoryPtr;
         }
+        memoryPtr = memoryPtr->next;
     }
     return NULL;
 }
-
-///////////////////////////////////////// Socket Handling  //////////////////////////////////////
-int createSocket(int PORT)
+struct Change *getChangeDetails(char *buffer)
 {
-    /* 
-this function will make a socket with intended client/server
-@params - host name to be contacted  
-Returns - socker file discriptor 
-*/
-    int sock, len;
-    static struct sockaddr_in host_adr;
-    char hello[10];
-    char buffer[1024];
-    // sprintf(hello, "%d", port);
-    struct hostent *host;
-    host = gethostbyname(HOSTIP); //returns the ip and the address to connect to
-    if (host == (struct hostent *)NULL)
-    {
-        perror("gethostbyname ");
-        exit(2);
-    }
-    //configuration adress
-    memset(&host_adr, 0, sizeof(host_adr));
-    host_adr.sin_family = AF_INET;
-    memcpy(&host_adr.sin_addr, host->h_addr, host->h_length);
-    host_adr.sin_port = htons(PORT);
 
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-    {
-        perror("socker creation error");
-        exit(3);
-    }
-    if (connect(sock, (struct sockaddr *)&host_adr, sizeof(host_adr)) < 0)
-    {
-        perror("connect error, run the server first");
-        exit(4);
-    }
-    return sock;
+    char *token;
+    struct Change *change = (struct Change *)malloc(sizeof(struct Change));
+    token = strtok(buffer, ":");
+    sscanf(token, "%d", &change->type);
+    token = strtok(NULL, ":");
+    sscanf(token, "%d", &change->memId);
+    token = strtok(NULL, ":");
+    strcpy(change->content, token);
+    // sscanf(token, "%s", &change->content);
+    token = strtok(NULL, ":");
+    sscanf(token, "%d", &change->updateContentIndex);
+    token = strtok(NULL, ":");
+    sscanf(token, "%d", &change->newMemberId);
+    token = strtok(NULL, ":");
+    sscanf(token, "%d", &change->lockedBy);
+    return change;
 }
 
-///////////////////////////////////////// Main Operation ////////////////////////////////////////
+void updateMemory(struct Change *change)
+{
 
-void printMemory(struct Memory *memory)
+    // printf("in Update: %d:%d:%s:%d:%d:%d", change->type, change->memId, change->content, change->updateContentIndex, change->newMemberId, change->lockedBy);
+    struct Memory *memory = findMemory(change->memId);
+    // struct Memory *memory = memoryExists(&memoryHead, change->memId);
+
+    printf("Found Memory: %d", memory->memoryID);
+    if (memory == NULL)
+    {
+        printf(RED "ERROR : Memory doesn't exist\n" RESET);
+        return;
+    }
+
+    if (change->type == LOCK_CHANGE)
+    {
+        memory->lockedBy = change->lockedBy;
+    }
+    else if (change->type == UNLOCK_CHANGE)
+    {
+        memory->lockedBy = 0;
+    }
+    else if (change->type == CONTENT_CHANGE)
+    {
+        for (int i = 0; i < strlen(change->content); i++)
+        {
+            memory->content[change->updateContentIndex + i] = change->content[i];
+        }
+    }
+    else if (change->type == SHAREDBY_CHANGE)
+    {
+        struct Member *new_member = (struct Member *)malloc(sizeof(struct Member));
+        new_member->data = port;
+        new_member->next = NULL;
+        struct Member *membersListPtr = memory->sharedBy;
+        while (membersListPtr->next != NULL)
+        {
+            membersListPtr = membersListPtr->next;
+        }
+        membersListPtr->next = new_member;
+    }
+    else
+    {
+        printf("not defined type");
+    }
+}
+void printMemory()
 {
     /* 
     print all client memories with its attributes
     @params: - memory table refrence to be printed
     */
 
+    struct Memory *memory = memoryHead;
     printf(" \n*********************************** \n");
     while (memory != NULL)
     {
-        
-        printf(BLU" memory id: %d => \n", memory->memoryID);
+
+        printf(BLU " memory id: %d => \n", memory->memoryID);
         printf("CONTENT: [%s]\n", memory->content);
         printf("locked by: %d\n", memory->lockedBy);
         printf("shared by: ");
@@ -83,10 +123,27 @@ void printMemory(struct Memory *memory)
         }
         // printf("\n \n");
         memory = memory->next;
-        printf(RESET"\n-------------------\n");
+        printf(RESET "\n-------------------\n");
     }
 }
+///////////////////////////////////////// Listen function ////////////////////////////////////////
+void listenHandler(void *socket)
+{
+    int new_socket = *((int *)socket);
+    char buffer[1024];
+    read(new_socket, buffer, 1024);
+    struct Change *change = getChangeDetails(buffer);
 
+    updateMemory(change);
+
+    printMemory();
+}
+
+void startListinging(int portNumber)
+{
+}
+
+///////////////////////////////////////// Main Operation ////////////////////////////////////////
 struct Request initializeRequest(int requestType)
 {
     struct Request *request = (struct Request *)malloc(sizeof(struct Request));
@@ -112,11 +169,11 @@ void lockMemory()
     int sock = createSocket(SERVERPORT);
     send(sock, sendBuffer, sizeof(sendBuffer), 0); //send client id
     read(sock, readBuffer, 1024);
-    printf("after read in lock [%s]\n",readBuffer);
+    printf("after read in lock [%s]\n", readBuffer);
 
-    if(atoi(readBuffer) == -1)
+    if (atoi(readBuffer) == -1)
         printf(RED "ERROR : the memory doesn't exist\n" RESET);
-    else if(atoi(readBuffer) == -2)
+    else if (atoi(readBuffer) == -2)
         printf(RED "ERROR : the client is not member of the memory\n" RESET);
     else
     {
@@ -127,7 +184,7 @@ void lockMemory()
         }
     }
 
-    printMemory(memoryHead);
+    printMemory();
 }
 
 void unlockMemory()
@@ -146,9 +203,9 @@ void unlockMemory()
     send(sock, sendBuffer, sizeof(sendBuffer), 0); //send client id
     read(sock, readBuffer, 1024);
 
-    if(atoi(readBuffer) == -1)
+    if (atoi(readBuffer) == -1)
         printf(RED "ERROR : the memory doesn't exist\n" RESET);
-    else if(atoi(readBuffer) == -2)
+    else if (atoi(readBuffer) == -2)
         printf(RED "ERROR : the client is not member of the memory\n" RESET);
 
     else
@@ -160,8 +217,7 @@ void unlockMemory()
         }
     }
 
-
-    printMemory(memoryHead);
+    printMemory();
 }
 
 void copyMemory()
@@ -181,14 +237,15 @@ void copyMemory()
     send(sock, sendBuffer, sizeof(sendBuffer), 0); //send client id
     read(sock, readBuffer, 1024);
 
-    if(atoi(readBuffer) == -1)
+    if (atoi(readBuffer) == -1)
         printf(RED "ERROR : the memory doesn't exist\n" RESET);
-    else if(atoi(readBuffer) == -2)
+    else if (atoi(readBuffer) == -2)
         printf(RED "ERROR : the client is not member of the memory\n" RESET);
-    else if(atoi(readBuffer) == -3)
+    else if (atoi(readBuffer) == -3)
         printf(RED "ERROR : Memory is locked by another client\n" RESET);
-    else{
-        printf("the content received :[%s]\n",readBuffer);
+    else
+    {
+        printf("the content received :[%s]\n", readBuffer);
         struct Memory *memory = findMemory(request.memId);
         if (memory != NULL)
         {
@@ -208,6 +265,7 @@ void restructStringAsMembers(struct Member **head_ref, char *members)
     char *token;
     int num;
     token = strtok(members, ":");
+    printf("%s",token);
     num = atoi(token);
     while (token != NULL)
     {
@@ -221,17 +279,19 @@ void restructStringAsMembers(struct Member **head_ref, char *members)
     }
 }
 
-void makeNewMemory(struct Memory **head_ref, char *content, char *members)
+void makeNewMemory(char *content, char *members)
 {
     /*
     make a memory in the client with fields
     */
+    // struct Memory **head_ref;
+
     struct Memory *newMemory = (struct Memory *)malloc(sizeof(struct Memory));
     newMemory->memoryID = memId;
     strcpy(newMemory->content, content);
     restructStringAsMembers(&newMemory->sharedBy, members);
-    newMemory->next = (*head_ref);
-    (*head_ref) = newMemory;
+    newMemory->next = (memoryHead);
+    (memoryHead) = newMemory;
 }
 
 void createMemoryRequest()
@@ -259,7 +319,8 @@ void createMemoryRequest()
         perror("error in connection");
         exit(1);
     }
-    else if (atoi(readBuffer) == -4){
+    else if (atoi(readBuffer) == -4)
+    {
         printf(RED "ERROR : the client already in the memory\n" RESET);
     }
     else if (atoi(readBuffer) == 1)
@@ -267,16 +328,16 @@ void createMemoryRequest()
         printf("new memory\n");
         //create a new memory with memid and one member with no content
         sprintf(readBuffer, "%d:", port);
-        makeNewMemory(&memoryHead, "", readBuffer);
-        printMemory(memoryHead);
+        makeNewMemory("", readBuffer);
+        printMemory();
     }
     else
     { //already exists memroy
-        makeNewMemory(&memoryHead, "dummy content", readBuffer);
+        makeNewMemory("dummy content", readBuffer);
         //create a new memory for this client with memid
         //request a copy that make lock then copy
         copyMemory();
-        printMemory(memoryHead);
+        printMemory();
     }
 }
 
@@ -296,15 +357,16 @@ void readMemory()
     send(sock, sendBuffer, sizeof(sendBuffer), 0); //send client id
     read(sock, readBuffer, 1024);
 
-    if(atoi(readBuffer) == -1)
+    if (atoi(readBuffer) == -1)
         printf(RED "ERROR : the memory doesn't exist\n" RESET);
-    else if(atoi(readBuffer) == -2)
+    else if (atoi(readBuffer) == -2)
         printf(RED "ERROR : the client is not member of the memory\n" RESET);
-    else if(atoi(readBuffer) == -3)
+    else if (atoi(readBuffer) == -3)
         printf(RED "ERROR : Memory is locked by another client\n" RESET);
 
-    else{
-        printf("the content received :[%s]\n",readBuffer);
+    else
+    {
+        printf("the content received :[%s]\n", readBuffer);
         struct Memory *memory = findMemory(request.memId);
         if (memory != NULL)
         {
@@ -328,22 +390,21 @@ void writeIntoMemory()
     send(sock, sendBuffer, sizeof(sendBuffer), 0); //send client id
     read(sock, readBuffer, 1024);
 
-    if(atoi(readBuffer) == -1)
+    if (atoi(readBuffer) == -1)
         printf(RED "ERROR : the memory doesn't exist\n" RESET);
-    else if(atoi(readBuffer) == -2)
+    else if (atoi(readBuffer) == -2)
         printf(RED "ERROR : the client is not member of the memory\n" RESET);
-    else{
+    else
+    {
         printf("*********************\n");
         printf("Enter data to be written:\n");
-        scanf("%s",sendBuffer);
+        scanf("%s", sendBuffer);
         send(sock, sendBuffer, sizeof(sendBuffer), 0);
-        read(sock, readBuffer, 1024);//index of new data
-        printf("******[%s]*******\n",readBuffer); 
+        read(sock, readBuffer, 1024); //index of new data
+        printf("******[%s]*******\n", readBuffer);
     }
     unlockMemory();
 }
-
-
 
 void talkTo(int portToTalk)
 {
@@ -371,63 +432,124 @@ void talkTo(int portToTalk)
 ///////////////////////////////////////// Main function ////////////////////////////////////////
 int main()
 {
-    int ans;
+
     printf("Enter your PORT number (Clinet)\n");
     scanf("%d", &port);
-
-    while (1)
+    pid_t pid = fork(); // create child process to listen for conecctions.
+    int ans;
+    // int pid = 1;
+    if (pid != 0) // parent process
     {
 
-        printf("Enter memory ID you want to work on\n");
-        scanf("%d", &memId);
-        printf("Enter the type of request\n");
-        printf(CYN" --------------------------------\n");
-        printf("| 1- Create a Shared Memory      |\n");
-        printf("| 2- Read a Shared Memory        |\n");
-        printf("| 3- Write into a Shared Memory  |\n");
-        printf("| 4- Copy a Shared Memory        |\n");
-        printf("| 5- lock memory                 |\n");
-        printf("| 6- unlock memory               |\n");
-        printf(" --------------------------------\n"RESET);
+        // pthread_t listeningThread;
+        // pthread_create(&listeningThread, NULL, (void *)startListinging, (void *)&port);
+        // // pthread_join(listeningThread, NULL);
 
-        scanf("%d", &ans);
-
-        switch (ans)
+        while (1)
         {
-        case 1: // CREATE
-            createMemoryRequest();
-            break;
 
-        case 2: // READ
-            readMemory();
-            break;
+            printf("Enter memory ID you want to work on\n");
+            scanf("%d", &memId);
+            printf("Enter the type of request\n");
+            printf(CYN " --------------------------------\n");
+            printf("| 1- Create a Shared Memory      |\n");
+            printf("| 2- Read a Shared Memory        |\n");
+            printf("| 3- Write into a Shared Memory  |\n");
+            printf("| 4- Copy a Shared Memory        |\n");
+            printf("| 5- lock memory                 |\n");
+            printf("| 6- unlock memory               |\n");
+            printf("| 7- Print Memories              |\n");
+            printf(" --------------------------------\n" RESET);
 
-        case 3: // WRITE
-            writeIntoMemory();
-            break;
+            scanf("%d", &ans);
 
-        case 4: // COPY
-            copyMemory();
-            break;
+            switch (ans)
+            {
+            case 1: // CREATE
+                createMemoryRequest();
+                break;
 
-        case 5: // COPY
-            lockMemory();
-            break;
+            case 2: // READ
+                readMemory();
+                break;
 
-        case 6: // COPY
-            unlockMemory();
-            break;
+            case 3: // WRITE
+                writeIntoMemory();
+                break;
 
-        case 7:
-            // int portToTalk;
-            // printf("enter the prot you want to talk\n");
-            // scanf("%d", &portToTalk);
-            // talkTo(portToTalk);
-            break;
+            case 4: // COPY
+                copyMemory();
+                break;
 
-        default:
-            printf("Faild input\n");
-            break;
+            case 5: // COPY
+                lockMemory();
+                break;
+
+            case 6: // COPY
+                unlockMemory();
+                break;
+
+            case 7:
+                printMemories();
+                // int portToTalk;
+                // printf("enter the prot you want to talk\n");
+                // scanf("%d", &portToTalk);
+                // talkTo(portToTalk);
+                break;
+
+            default:
+                printf("Faild input\n");
+                break;
+            }
+        }
+    }
+    else // child process
+    {
+        int orig_sock, new_sock;
+        socklen_t clnt_len;
+        struct sockaddr_in clnt_adr, serv_adr;
+        int len, i;
+
+        if ((orig_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+        {
+            perror("Generation Socket error");
+            exit(1);
+        }
+
+        memset(&serv_adr, 0, sizeof(serv_adr));
+        serv_adr.sin_family = AF_INET;
+        serv_adr.sin_addr.s_addr = htonl(INADDR_ANY); //basically my ip address
+        serv_adr.sin_port = htons(port);              //initiating port number
+
+        if (bind(orig_sock, (struct sockaddr *)&serv_adr, sizeof(serv_adr)) < 0)
+        {
+            perror("bind Socket error");
+            close(orig_sock);
+            exit(2);
+        }
+
+        if (listen(orig_sock, 10) < 0)
+        { //can listen for 5
+            perror("listen Socket error");
+            close(orig_sock);
+            exit(3);
+        }
+
+        while (1)
+        {
+            // printf("start while loop\n");
+            // clnt_len = sizeof(clnt_adr);
+            if ((new_sock = accept(orig_sock, (struct sockaddr *)&clnt_adr, &clnt_len)) < 0)
+            {
+                perror("accept error");
+                close(orig_sock);
+                exit(4);
+            }
+            pthread_t thread;
+            // printf("start thread\n");
+            pthread_create(&thread, NULL, (void *)listenHandler, (void *)&new_sock);
+            // pthread_join(thread, NULL);
+            // printf("after thread\n");
         }
     }
 
