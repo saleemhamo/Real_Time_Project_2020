@@ -11,7 +11,7 @@
 // #define PORT 9999
 #define SERVERPORT 2270
 #define HOSTIP "localhost"
-#define MEMORYCAPACITY 4297
+#define MEMORYCAPACITY 4597
 #define RED "\x1B[31m"
 #define RESET "\x1B[0m"
 #define BLU "\x1B[34m"

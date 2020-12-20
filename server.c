@@ -52,9 +52,9 @@ void notifyUpdates(struct Change *change, int clientPort)
     sprintf(sendBuffer, "%d:%d:%s:%d:%d:%d", change->type, change->memId, change->content, change->updateContentIndex, change->newMemberId, change->lockedBy);
     // sprintf(sendBuffer, "%d:%d:%d:%d:%d", change->type, change->memId,change->updateContentIndex, change->newMemberId, change->lockedBy);
     printf("I entered NU with type %d of memory %d to client %d\n",change->type, change->memId, clientPort);
-    sleep(2);
+    sleep(3);
     int sock = createSocket(clientPort);
-    printf("Inside notify: Client: %d, Memory: %d\n", clientPort, change->memId);
+    // printf("Inside notify: Client: %d, Memory: %d\n", clientPort, change->memId);
     send(sock, sendBuffer, sizeof(sendBuffer), 0); //send updates
 }
 
@@ -89,7 +89,7 @@ void printTable(struct Memory *table)
     /* 
     print all tables and its content
     */
-    printf("start print \n*************************** \n");
+    printf(" \n*************************** \n");
     while (table != NULL)
     {
         printf(BLU "| %d | => ", table->memoryID);
@@ -175,7 +175,7 @@ void pushToTable(struct Memory **head_ref, int memID, int port, int socket)
 void createOrAddToSharedMemoryOperation(struct Client client, int memId, int socket)
 {
     char *response;
-    printf("type one request\n");
+    // printf("type one request\n");
     pushToTable(&tableHead, memId, client.portNumber, socket);
     //copy memory and send it to client
 
@@ -274,7 +274,7 @@ void writeOperation(struct Request request, int socket)
         send(socket, "1", sizeof("1"), 0);
         //wait the client to send data to be written
         read(socket, readBuffer, 1024);
-        printf("******[%s]******* data received\n", readBuffer);
+        // printf("******[%s]******* data received\n", readBuffer);
         int newDataIndex = (int)strlen(memory->content);
         sprintf(sendBuffer, "%d", newDataIndex); //index of new data
         strcat(memory->content, readBuffer);
@@ -347,7 +347,7 @@ void lockOperation(struct Request request, int socket)
             -2 when the client is not member of the memry
             client prot number when sucess
     */
-    printf("2\n");
+    
     char sendBuffer[100];
     struct Memory *memory = memoryExists(&tableHead, request.memId);
     int memExists = 0;
