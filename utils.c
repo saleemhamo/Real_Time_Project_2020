@@ -4,14 +4,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <sys/mman.h>
 
-// #define PORT 9999
-#define SERVERPORT 2270
+#define SERVERPORT 2251
 #define HOSTIP "localhost"
-#define MEMORYCAPACITY 4597
+#define MEMORYCAPACITY 5597
 #define RED "\x1B[31m"
 #define RESET "\x1B[0m"
 #define BLU "\x1B[34m"
@@ -25,7 +24,8 @@ enum OPERATION
     COPY,
     LOCK,
     UNLOCK,
-    TALKTO
+    TALKTO,
+    QUIT
 };
 
 enum CHANGE
@@ -35,6 +35,7 @@ enum CHANGE
     CONTENT_CHANGE,
     SHAREDBY_CHANGE
 };
+
 struct Change
 {
     enum CHANGE type;
@@ -77,12 +78,6 @@ struct Memory
     struct Memory *next;
 };
 
-// struct Memory
-// {
-//     int memoryID;
-//     struct Member *sharedBy;
-//     struct Memory *next;
-// };
 ///////////////////////////////////////// Socket Handling  //////////////////////////////////////
 int createSocket(int PORT)
 {
@@ -95,7 +90,6 @@ Returns - socker file discriptor
     static struct sockaddr_in host_adr;
     char hello[10];
     char buffer[1024];
-    // sprintf(hello, "%d", port);
     struct hostent *host;
     host = gethostbyname(HOSTIP); //returns the ip and the address to connect to
     if (host == (struct hostent *)NULL)
@@ -116,16 +110,14 @@ Returns - socker file discriptor
     }
     if (connect(sock, (struct sockaddr *)&host_adr, sizeof(host_adr)) < 0)
     {
-        perror("connect error, run the server first");
+        perror(RED"CONNECTION ERROR..."RESET);
         exit(4);
     }
     return sock;
 }
 
-
 struct Memory *memoryExists(struct Memory **head_ref, int memID)
 {
-    printf("memory exist started\n");
     int memExists = 0;
     struct Memory *exist = *head_ref;
     if (*head_ref != NULL)
@@ -139,9 +131,7 @@ struct Memory *memoryExists(struct Memory **head_ref, int memID)
             }
             exist = exist->next;
         }
-        printf("memory exist finished\n");
         return exist;
     }
-    printf("memory exist finished with null\n");
     return NULL;
 }
